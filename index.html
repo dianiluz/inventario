@@ -53,7 +53,7 @@
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
                     <div>
-                        <h3 class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase">Ventas del Mes</h3>
+                        <h3 class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase">Ventas del Periodo</h3>
                         <p id="stat-ventas-mes" class="text-xl sm:text-2xl font-black text-indigo-600 mt-1">$0</p>
                     </div>
                     <div class="p-2.5 bg-indigo-50 rounded-xl text-indigo-600 font-bold text-lg">💵</div>
@@ -99,6 +99,26 @@
                             Ver Deudas
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <!-- CONTROLES DE FILTRO TEMPORAL PARA GRÁFICO -->
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">📅</span>
+                    <h2 class="text-sm sm:text-base font-bold text-slate-800">Filtro Temporal de Gráfico</h2>
+                </div>
+                <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                    <input type="month" id="filtro-mes-grafico" onchange="actualizarFiltrosDashboard()" class="p-2 border rounded-xl text-xs bg-slate-50 font-semibold">
+                    <select id="filtro-rango-grafico" onchange="actualizarFiltrosDashboard()" class="p-2 border rounded-xl text-xs bg-slate-50 font-semibold">
+                        <option value="mes">Mes Completo</option>
+                        <option value="quincena-1">1ª Quincena (Días 1-15)</option>
+                        <option value="quincena-2">2ª Quincena (Días 16-31)</option>
+                        <option value="semana-1">Semana 1</option>
+                        <option value="semana-2">Semana 2</option>
+                        <option value="semana-3">Semana 3</option>
+                        <option value="semana-4">Semana 4+</option>
+                    </select>
                 </div>
             </div>
 
@@ -148,17 +168,19 @@
             <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 border-b pb-3">
                     <div>
-                        <h2 class="text-base sm:text-lg font-bold text-indigo-700">➕ Crear Pedido Real / CRM</h2>
-                        <p class="text-xs text-slate-400">Selecciona un cliente existente para evitar duplicidad</p>
+                        <h2 id="titulo-form-pedido" class="text-base sm:text-lg font-bold text-indigo-700">➕ Crear Pedido Real / CRM</h2>
+                        <p class="text-xs text-slate-400">Selecciona un cliente existente para asociar su historial correctamente</p>
                     </div>
-                    <div class="w-full sm:w-72">
-                        <select id="select-cliente-existente" onchange="autocompletarClienteExistente()" class="p-2 border rounded-xl w-full text-xs bg-indigo-50 font-semibold text-indigo-800 border-indigo-200">
+                    <div class="flex gap-2 w-full sm:w-auto">
+                        <select id="select-cliente-existente" onchange="autocompletarClienteExistente()" class="p-2 border rounded-xl w-full sm:w-72 text-xs bg-indigo-50 font-semibold text-indigo-800 border-indigo-200">
                             <option value="">👤 Seleccionar cliente registrado...</option>
                         </select>
+                        <button type="button" id="btn-cancelar-edicion-pedido" onclick="cancelarEdicionPedido()" class="hidden bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1 rounded-xl text-xs font-bold">Cancelar Edición</button>
                     </div>
                 </div>
 
                 <form id="form-pedido-admin" class="space-y-4">
+                    <input type="hidden" id="ped-id-edit">
                     <input type="hidden" id="cli-id-seleccionado">
                     <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                         <div>
@@ -273,7 +295,7 @@
                             <p class="text-xs text-indigo-700 font-semibold">TOTAL PEDIDO: <span id="lbl-total-admin" class="text-lg font-black">$0</span></p>
                             <p class="text-xs text-amber-700 font-semibold">SALDO PENDIENTE: <span id="lbl-saldo-admin" class="text-sm font-bold">$0</span></p>
                         </div>
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold shadow transition w-full sm:w-auto text-xs">💾 Guardar Pedido Definitivo</button>
+                        <button type="submit" id="btn-submit-pedido" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold shadow transition w-full sm:w-auto text-xs">💾 Guardar Pedido Definitivo</button>
                     </div>
                 </form>
             </div>
@@ -400,14 +422,14 @@
                         
                         <!-- SECCIÓN PARA RELACIONAR PEDIDO (ABONO/PAGO) -->
                         <div id="seccion-relacionar-pedido" class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl space-y-2">
-                            <label class="font-bold text-indigo-900">🔗 Relacionar con Pedido Entregado (Opcional)</label>
+                            <label class="font-bold text-indigo-900">🔗 Relacionar con Pedido Pendiente (Descuenta Automático)</label>
                             <select id="caja-pedido-relacionado" onchange="autocompletarMontoPedido()" class="p-2 border rounded-xl w-full bg-white font-semibold">
                                 <option value="">-- Seleccionar pedido para abonar/pagar --</option>
                             </select>
-                            <p class="text-[10px] text-indigo-600">Al seleccionar un pedido, se marcará automáticamente como abonado o pagado en el sistema.</p>
+                            <p class="text-[10px] text-indigo-600">Al seleccionar un pedido, se descontará de su saldo pendiente y cuentas por cobrar al registrar el ingreso.</p>
                         </div>
 
-                        <!-- SECCIÓN PARA RELACIONAR DEUDA ACTIVA (NUEVO) -->
+                        <!-- SECCIÓN PARA RELACIONAR DEUDA ACTIVA -->
                         <div id="seccion-relacionar-deuda" class="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2 hidden">
                             <label class="font-bold text-amber-900">🔗 Relacionar con Deuda Activa (Opcional)</label>
                             <select id="caja-deuda-relacionada" onchange="autocompletarMontoDeuda()" class="p-2 border rounded-xl w-full bg-white font-semibold">
@@ -447,7 +469,7 @@
                     </form>
                 </div>
 
-                <!-- REGISTRO DE DEUDAS MENSUALES (SIN CAMPO DE MÉTODO DE PAGO) -->
+                <!-- REGISTRO DE DEUDAS MENSUALES -->
                 <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
                     <h2 class="text-base sm:text-lg font-bold mb-3 text-amber-700">📌 Registrar Deuda / Obligación Activa</h2>
                     <form id="form-deuda-mensual" class="space-y-3 text-xs">
@@ -544,7 +566,7 @@
                 </div>
                 <div id="vista-pdf-consolidado" class="space-y-6">
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs border-b pb-4">
-                        <div><strong>Ventas del Mes:</strong> <br><span id="rep-ventas" class="text-sm font-bold text-indigo-600">$0</span></div>
+                        <div><strong>Ventas del Periodo:</strong> <br><span id="rep-ventas" class="text-sm font-bold text-indigo-600">$0</span></div>
                         <div><strong>Cuentas por Cobrar:</strong> <br><span id="rep-cobrar" class="text-sm font-bold text-amber-600">$0</span></div>
                         <div><strong>Caja Efectivo:</strong> <br><span id="rep-efectivo" class="text-sm font-bold text-emerald-600">$0</span></div>
                         <div><strong>Caja Bancos:</strong> <br><span id="rep-bancos" class="text-sm font-bold text-blue-600">$0</span></div>
@@ -651,6 +673,12 @@
             const hoyStr = new Date().toISOString().split('T')[0];
             const inputFechaCaja = document.getElementById('caja-fecha');
             if (inputFechaCaja) inputFechaCaja.value = hoyStr;
+
+            const inputMesGrafico = document.getElementById('filtro-mes-grafico');
+            if (inputMesGrafico) {
+                inputMesGrafico.value = hoyStr.slice(0, 7);
+            }
+
             cargarDatosGlobales();
         });
 
@@ -706,6 +734,11 @@
                 const { data: deudas } = await supabaseClient.from('deudas_mensuales').select('*').order('dia_pago', { ascending: true });
                 deudasMensualesCache = deudas || [];
             } catch (e) { deudasMensualesCache = []; }
+
+            try {
+                const { data: caja } = await supabaseClient.from('flujo_caja').select('*').order('fecha', { ascending: false });
+                flujoCajaCache = caja || [];
+            } catch (e) { flujoCajaCache = []; }
 
             await cargarInventarioAdmin();
             await cargarPedidosAdmin();
@@ -778,14 +811,39 @@
             }
         }
 
-        // ================= GRÁFICO DIARIO DE FLUJO DE CAJA =================
+        // ================= GRÁFICO DIARIO DE FLUJO DE CAJA CON FILTROS TEMPORALES =================
+        function actualizarFiltrosDashboard() {
+            renderizarGraficoDiario();
+        }
+
         function renderizarGraficoDiario() {
             const ctx = document.getElementById('chart-flujo-diario');
             if(!ctx) return;
 
+            const mesFiltroVal = document.getElementById('filtro-mes-grafico')?.value; // YYYY-MM
+            const rangoFiltroVal = document.getElementById('filtro-rango-grafico')?.value || 'mes';
+
             const agrupado = {};
             flujoCajaCache.forEach(mov => {
-                let fecha = mov.fecha || 'Sin fecha';
+                let fecha = mov.fecha || '';
+                if(!fecha) return;
+
+                if (mesFiltroVal && !fecha.startsWith(mesFiltroVal)) {
+                    return; // Filtrar por mes seleccionado
+                }
+
+                let dia = parseInt(fecha.split('-')[2]) || 1;
+                let incluir = true;
+
+                if (rangoFiltroVal === 'quincena-1') incluir = (dia >= 1 && dia <= 15);
+                else if (rangoFiltroVal === 'quincena-2') incluir = (dia >= 16 && dia <= 31);
+                else if (rangoFiltroVal === 'semana-1') incluir = (dia >= 1 && dia <= 7);
+                else if (rangoFiltroVal === 'semana-2') incluir = (dia >= 8 && dia <= 14);
+                else if (rangoFiltroVal === 'semana-3') incluir = (dia >= 15 && dia <= 21);
+                else if (rangoFiltroVal === 'semana-4') incluir = (dia >= 22);
+
+                if (!incluir) return;
+
                 if(!agrupado[fecha]) agrupado[fecha] = { ingresos: 0, egresos: 0 };
                 if(mov.tipo === 'INGRESO') agrupado[fecha].ingresos += parseMonto(mov.valor || 0);
                 if(mov.tipo === 'EGRESO') agrupado[fecha].egresos += parseMonto(mov.valor || 0);
@@ -882,7 +940,10 @@
                     let cli = clientesCache.find(c => c.id === p.cliente_id) || { nombre: 'Cliente General' };
                     let totalP = parseMonto(p.total);
                     let pagadoP = parseMonto(p.pagado);
-                    sel.innerHTML += `<option value="${p.id}">${cli.nombre} - Ref: ${p.id.slice(0,6)} - Total: $${formatMoneda(totalP)} - Saldo: $${formatMoneda(totalP - pagadoP)}</option>`;
+                    let saldoP = totalP - pagadoP;
+                    if(saldoP > 0) {
+                        sel.innerHTML += `<option value="${p.id}">${cli.nombre} - Ref: ${p.id.slice(0,6)} - Total: $${formatMoneda(totalP)} - Saldo Pendiente: $${formatMoneda(saldoP)}</option>`;
+                    }
                 }
             });
         }
@@ -919,9 +980,6 @@
 
         async function cargarContabilidad() {
             try {
-                const { data } = await supabaseClient.from('flujo_caja').select('*').order('fecha', { ascending: false });
-                flujoCajaCache = data || [];
-                
                 const tbody = document.getElementById('tabla-caja-historial');
                 if(tbody) tbody.innerHTML = '';
                 
@@ -935,7 +993,7 @@
                 });
                 
                 let ef = 0, bco = 0, ret4x1000 = 0;
-                filtrados.forEach(m => {
+                flujoCajaCache.forEach(m => {
                     let v = parseMonto(m.valor || 0);
                     let retMov = (m.impuesto_4x1000 !== undefined && m.impuesto_4x1000 !== null) ? parseMonto(m.impuesto_4x1000) : (m.tipo === 'EGRESO' && m.metodo_pago !== 'Efectivo' ? v * 0.004 : 0);
 
@@ -949,6 +1007,11 @@
                             ret4x1000 += retMov; 
                         }
                     }
+                });
+
+                filtrados.forEach(m => {
+                    let v = parseMonto(m.valor || 0);
+                    let retMov = (m.impuesto_4x1000 !== undefined && m.impuesto_4x1000 !== null) ? parseMonto(m.impuesto_4x1000) : (m.tipo === 'EGRESO' && m.metodo_pago !== 'Efectivo' ? v * 0.004 : 0);
                     
                     if(tbody) {
                         let edicion4x1000Html = '-';
@@ -997,7 +1060,7 @@
             }
 
             showToast("4x1000 ajustado y guardado correctamente");
-            cargarContabilidad();
+            cargarDatosGlobales();
         }
 
         document.getElementById('form-caja-manual')?.addEventListener('submit', async (e) => {
@@ -1009,6 +1072,7 @@
             const metodo = document.getElementById('caja-metodo').value;
             const valor = parseMonto(document.getElementById('caja-valor').value);
             const desc = document.getElementById('caja-desc').value;
+            const pedidoRelId = document.getElementById('caja-pedido-relacionado').value;
             
             let impuesto_4x1000 = 0;
             if (tipo === 'EGRESO' && metodo !== 'Efectivo') {
@@ -1016,15 +1080,30 @@
             }
             
             const { error } = await supabaseClient.from('flujo_caja').insert([{
-                fecha, tipo, concepto, tercero, metodo_pago: metodo, valor, impuesto_4x1000, descripcion: desc
+                fecha, tipo, concepto, tercero, metodo_pago: metodo, valor, impuesto_4x1000, description: desc
             }]);
 
             if(error) { showToast("Error guardando flujo", "error"); return; }
 
-            showToast("Movimiento de caja registrado con éxito");
+            // SI ES UN INGRESO RELACIONADO A UN PEDIDO, ACTUALIZAR SALDO Y ESTADO DE PAGO AUTOMÁTICAMENTE
+            if (tipo === 'INGRESO' && pedidoRelId) {
+                let pedidoObj = pedidosCache.find(p => p.id === pedidoRelId);
+                if (pedidoObj) {
+                    let nuevoPagado = parseMonto(pedidoObj.pagado || 0) + valor;
+                    let totalPedido = parseMonto(pedidoObj.total || 0);
+                    let nuevoEstadoPago = nuevoPagado >= totalPedido ? 'Pagado' : (nuevoPagado > 0 ? 'Abonado' : 'Pendiente');
+
+                    await supabaseClient.from('pedidos').update({
+                        pagado: nuevoPagado,
+                        estado_pago: nuevoEstadoPago
+                    }).eq('id', pedidoRelId);
+                }
+            }
+
+            showToast("Movimiento de caja registrado y saldo actualizado con éxito");
             document.getElementById('form-caja-manual').reset();
             document.getElementById('caja-fecha').value = new Date().toISOString().split('T')[0];
-            cargarContabilidad();
+            cargarDatosGlobales();
         });
 
         function descargarMovimientosMes() {
@@ -1188,6 +1267,7 @@
                 document.getElementById('cli-nombre').value = c.nombre || '';
                 document.getElementById('cli-direccion').value = c.direccion || '';
                 document.getElementById('cli-email-cc').value = c.email || '';
+                document.getElementById('select-cliente-existente').value = c.id;
             }
         }
 
@@ -1291,17 +1371,28 @@
                 return;
             }
 
+            const idEdit = document.getElementById('ped-id-edit').value;
             const nombre = document.getElementById('cli-nombre').value.trim();
             const telefono = document.getElementById('cli-telefono').value.trim();
             const direccion = document.getElementById('cli-direccion').value.trim();
             const emailCc = document.getElementById('cli-email-cc').value.trim();
             let cliId = document.getElementById('cli-id-seleccionado').value;
 
+            // BUSCAR SI EL CLIENTE YA EXISTE POR TELÉFONO O ID PARA EVITAR DUPLICADOS
             if(!cliId) {
-                const { data: cIns } = await supabaseClient.from('clientes').insert([{
-                    nombre, telefono, direccion, email: emailCc
-                }]).select();
-                if(cIns && cIns.length > 0) cliId = cIns[0].id;
+                let clienteExistente = clientesCache.find(c => c.telefono && c.telefono.trim() === telefono);
+                if (clienteExistente) {
+                    cliId = clienteExistente.id;
+                    // Actualizar datos del cliente por si cambiaron
+                    await supabaseClient.from('clientes').update({ nombre, direccion, email: emailCc }).eq('id', cliId);
+                } else {
+                    const { data: cIns } = await supabaseClient.from('clientes').insert([{
+                        nombre, telefono, direccion, email: emailCc
+                    }]).select();
+                    if(cIns && cIns.length > 0) cliId = cIns[0].id;
+                }
+            } else {
+                await supabaseClient.from('clientes').update({ nombre, telefono, direccion, email: emailCc }).eq('id', cliId);
             }
 
             let subtotalCarrito = carritoAdmin.reduce((acc, i) => acc + i.subtotal, 0);
@@ -1314,64 +1405,162 @@
             let tipoOp = document.getElementById('ped-tipo').value;
             let metodoPago = document.getElementById('ped-metodo').value;
 
-            const referenciaGenerada = 'CUP-' + Math.floor(1000 + Math.random() * 9000);
+            if(idEdit) {
+                // ACTUALIZAR PEDIDO EXISTENTE
+                await supabaseClient.from('pedidos').update({
+                    cliente_id: cliId,
+                    tipo_operacion: tipoOp,
+                    total: total,
+                    pagado: pagado,
+                    domicilio: domicilio,
+                    costo_produccion_manual: costoManual,
+                    estado_pago: pagado >= total ? 'Pagado' : (pagado > 0 ? 'Abonado' : 'Pendiente'),
+                    fecha_agendamiento: fechaAgendamiento,
+                    fecha_entrega: fechaEntrega
+                }).eq('id', idEdit);
 
-            const { data: pIns, error: pErr } = await supabaseClient.from('pedidos').insert([{
-                referencia_pedido: referenciaGenerada,
-                cliente_id: cliId,
-                tipo_operacion: tipoOp,
-                total: total,
-                pagado: pagado,
-                domicilio: domicilio,
-                costo_produccion_manual: costoManual,
-                estado_pago: pagado >= total ? 'Pagado' : (pagado > 0 ? 'Abonado' : 'Pendiente'),
-                estado: 'Pendiente',
-                fecha_agendamiento: fechaAgendamiento,
-                fecha_entrega: fechaEntrega
-            }]).select();
+                // Borrar detalles anteriores y reinsertar
+                await supabaseClient.from('detalle_pedido').delete().eq('pedido_id', idEdit);
 
-            if(pErr || !pIns) {
-                showToast("Error guardando pedido en Supabase", "error");
-                return;
-            }
+                for(let item of carritoAdmin) {
+                    await supabaseClient.from('detalle_pedido').insert([{
+                        pedido_id: idEdit,
+                        producto_id: item.producto_id,
+                        nombre_producto: item.nombre_producto,
+                        cantidad: item.cantidad,
+                        precio_unitario: item.precio_unitario
+                    }]);
+                }
 
-            let pedidoId = pIns[0].id;
+                showToast("¡Pedido actualizado con éxito!");
+                cancelarEdicionPedido();
+            } else {
+                // CREAR NUEVO PEDIDO
+                const referenciaGenerada = 'CUP-' + Math.floor(1000 + Math.random() * 9000);
 
-            for(let item of carritoAdmin) {
-                await supabaseClient.from('detalle_pedido').insert([{
-                    pedido_id: pedidoId,
-                    producto_id: item.producto_id,
-                    nombre_producto: item.nombre_producto,
-                    cantidad: item.cantidad,
-                    precio_unitario: item.precio_unitario
-                }]);
+                const { data: pIns, error: pErr } = await supabaseClient.from('pedidos').insert([{
+                    referencia_pedido: referenciaGenerada,
+                    cliente_id: cliId,
+                    tipo_operacion: tipoOp,
+                    total: total,
+                    pagado: pagado,
+                    domicilio: domicilio,
+                    costo_produccion_manual: costoManual,
+                    estado_pago: pagado >= total ? 'Pagado' : (pagado > 0 ? 'Abonado' : 'Pendiente'),
+                    estado: 'Pendiente',
+                    fecha_agendamiento: fechaAgendamiento,
+                    fecha_entrega: fechaEntrega
+                }]).select();
 
-                if(item.producto_id && document.getElementById('ped-descontar-stock').value === 'si') {
-                    let prod = productosCache.find(x => x.id === item.producto_id);
-                    if(prod && !prod.sin_stock) {
-                        let nuevoStock = Math.max(0, (prod.stock || 0) - item.cantidad);
-                        await supabaseClient.from('productos').update({ stock: nuevoStock }).eq('id', item.producto_id);
+                if(pErr || !pIns) {
+                    showToast("Error guardando pedido en Supabase", "error");
+                    return;
+                }
+
+                let pedidoId = pIns[0].id;
+
+                for(let item of carritoAdmin) {
+                    await supabaseClient.from('detalle_pedido').insert([{
+                        pedido_id: pedidoId,
+                        producto_id: item.producto_id,
+                        nombre_producto: item.nombre_producto,
+                        cantidad: item.cantidad,
+                        precio_unitario: item.precio_unitario
+                    }]);
+
+                    if(item.producto_id && document.getElementById('ped-descontar-stock').value === 'si') {
+                        let prod = productosCache.find(x => x.id === item.producto_id);
+                        if(prod && !prod.sin_stock) {
+                            let nuevoStock = Math.max(0, (prod.stock || 0) - item.cantidad);
+                            await supabaseClient.from('productos').update({ stock: nuevoStock }).eq('id', item.producto_id);
+                        }
                     }
                 }
+
+                if(pagado > 0) {
+                    await supabaseClient.from('flujo_caja').insert([{
+                        fecha: new Date().toISOString().split('T')[0],
+                        tipo: 'INGRESO',
+                        concepto: 'Anticipo/Pago Pedido Ref: ' + pedidoId.slice(0,6),
+                        tercero: nombre,
+                        metodo_pago: metodoPago,
+                        valor: pagado
+                    }]);
+                }
+
+                showToast("¡Pedido guardado y sincronizado con éxito!");
             }
 
-            if(pagado > 0) {
-                await supabaseClient.from('flujo_caja').insert([{
-                    fecha: new Date().toISOString().split('T')[0],
-                    tipo: 'INGRESO',
-                    concepto: 'Anticipo/Pago Pedido Ref: ' + pedidoId.slice(0,6),
-                    tercero: nombre,
-                    metodo_pago: metodoPago,
-                    valor: pagado
-                }]);
-            }
-
-            showToast("¡Pedido guardado y sincronizado con éxito!");
             carritoAdmin = [];
             renderizarCarritoAdmin();
             document.getElementById('form-pedido-admin').reset();
             cargarDatosGlobales();
         });
+
+        async function prepararEdicionPedido(idPedido) {
+            const p = pedidosCache.find(x => x.id === idPedido);
+            if(!p) return;
+            const cli = clientesCache.find(c => c.id === p.cliente_id) || {};
+
+            document.getElementById('ped-id-edit').value = p.id;
+            document.getElementById('cli-id-seleccionado').value = p.cliente_id || '';
+            document.getElementById('cli-nombre').value = cli.nombre || '';
+            document.getElementById('cli-telefono').value = cli.telefono || '';
+            document.getElementById('cli-direccion').value = cli.direccion || '';
+            document.getElementById('cli-email-cc').value = cli.email || '';
+            document.getElementById('ped-tipo').value = p.tipo_operacion || 'Venta Contado';
+            document.getElementById('ped-fecha-agendamiento').value = p.fecha_agendamiento || '';
+            document.getElementById('ped-fecha-entrega').value = p.fecha_entrega || '';
+            document.getElementById('ped-costo-manual').value = p.costo_produccion_manual || 0;
+            document.getElementById('ped-domicilio').value = p.domicilio || 0;
+            document.getElementById('ped-anticipo').value = p.pagado || 0;
+
+            // Cargar items del carrito desde detallesPedidosCache
+            carritoAdmin = [];
+            let dets = detallesPedidosCache[p.id] || [];
+            dets.forEach(d => {
+                carritoAdmin.push({
+                    producto_id: d.producto_id,
+                    nombre_producto: d.nombre_producto,
+                    precio_unitario: parseMonto(d.precio_unitario),
+                    cantidad: parseMonto(d.cantidad),
+                    subtotal: parseMonto(d.precio_unitario) * parseMonto(d.cantidad)
+                });
+            });
+            renderizarCarritoAdmin();
+
+            document.getElementById('titulo-form-pedido').innerText = `✏️ Editar Pedido Ref: ${p.id.slice(0,6)}`;
+            document.getElementById('btn-cancelar-edicion-pedido').classList.remove('hidden');
+            document.getElementById('btn-submit-pedido').innerText = '💾 Actualizar Pedido';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelarEdicionPedido() {
+            document.getElementById('form-pedido-admin').reset();
+            document.getElementById('ped-id-edit').value = '';
+            document.getElementById('cli-id-seleccionado').value = '';
+            carritoAdmin = [];
+            renderizarCarritoAdmin();
+            document.getElementById('titulo-form-pedido').innerText = '➕ Crear Pedido Real / CRM';
+            document.getElementById('btn-cancelar-edicion-pedido').classList.add('hidden');
+            document.getElementById('btn-submit-pedido').innerText = '💾 Guardar Pedido Definitivo';
+        }
+
+        async function eliminarPedido(idPedido) {
+            if(!confirm("¿Estás seguro de eliminar este pedido? Esta acción no se puede deshacer.")) return;
+            
+            // Eliminar detalles
+            await supabaseClient.from('detalle_pedido').delete().eq('pedido_id', idPedido);
+            // Eliminar pedido
+            const { error } = await supabaseClient.from('pedidos').delete().eq('id', idPedido);
+            if(error) {
+                showToast("Error al eliminar el pedido", "error");
+                return;
+            }
+
+            showToast("Pedido eliminado correctamente");
+            cargarDatosGlobales();
+        }
 
         async function cargarPedidosAdmin() {
             const tbody = document.getElementById('tabla-pedidos-gral');
@@ -1414,9 +1603,10 @@
                         <td class="p-2.5"><strong>${cli.nombre}</strong><br><span class="text-[10px] text-slate-500">📞 ${cli.telefono||'Sin telf'}</span></td>
                         <td class="p-2.5">${p.tipo_operacion}<br><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeEstado}">${p.estado}</span></td>
                         <td class="p-2.5">Total: <strong>$${formatMoneda(total)}</strong><br><span class="text-amber-600 font-bold">Saldo: $${formatMoneda(saldo)}</span></td>
-                        <td class="p-2.5 flex gap-1">
+                        <td class="p-2.5 flex flex-wrap gap-1">
                             <button onclick="cambiarEstadoPedido('${p.id}', 'Entregado')" class="bg-emerald-50 hover:bg-emerald-100 p-1.5 rounded text-emerald-700 font-bold text-[10px]">Entregar</button>
-                            <button onclick="cambiarEstadoPedido('${p.id}', 'Cancelado')" class="bg-red-50 hover:bg-red-100 p-1.5 rounded text-red-700 font-bold text-[10px]">Cancelar</button>
+                            <button onclick="prepararEdicionPedido('${p.id}')" class="bg-indigo-50 hover:bg-indigo-100 p-1.5 rounded text-indigo-700 font-bold text-[10px]">✏️ Editar</button>
+                            <button onclick="eliminarPedido('${p.id}')" class="bg-red-50 hover:bg-red-100 p-1.5 rounded text-red-700 font-bold text-[10px]">🗑️ Eliminar</button>
                         </td>
                     </tr>
                 `;
