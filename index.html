@@ -603,12 +603,11 @@
         </div>
     </div>
 
-    <!-- SCRIPT JS FUNCIONAL COMPLETO -->
+<!-- SCRIPT JS FUNCIONAL COMPLETO -->
     <script>
-        const SUPABASE_URL = 'https://njwiobfjtmwsxyigxgrp.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_z9FRc9Z312kNfGbR_seecQ_9Sq2rUPj';
+const SUPABASE_URL = 'https://njwiobfjtmwsxyigxgrp.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qd2lvYmZqdG13c3h5aWd4Z3JwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDg5OTE2NiwiZXhwIjoyMTA2NDc1MTY2fQ.v4MSHSCOnYbXb8DRDtw9-Fml0irHK0IkhnH-Bw2eRe0';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
         let carritoAdmin = [];
         let productosCache = [];
         let clientesCache = [];
@@ -618,6 +617,8 @@
         let deudasMensualesCache = [];
         let productoSeleccionadoCache = null;
         let chartDiarioInstance = null;
+        
+        // ... el resto de tus funciones de la página ...
 
         function parseMonto(valor) {
             if (typeof valor === 'number') return isNaN(valor) ? 0 : valor;
