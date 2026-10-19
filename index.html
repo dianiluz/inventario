@@ -102,11 +102,17 @@
                 </div>
             </div>
 
-            <!-- GRAFICO DIARIO DE FLUJO DE CAJA -->
+            <!-- GRAFICA DE FLUJO DE CAJA: modulo independiente -->
             <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h2 class="text-base sm:text-lg font-bold text-slate-800 mb-3">📈 Ingresos vs Egresos (Movimiento Diario)</h2>
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                    <div>
+                        <h2 id="titulo-chart-flujo" class="text-base sm:text-lg font-bold text-slate-800">📈 Ingresos vs Egresos (Resumen mensual)</h2>
+                        <p id="ayuda-chart-flujo" class="text-xs text-slate-500 mt-1">Haz clic en un mes para consultar el detalle diario.</p>
+                    </div>
+                    <button id="btn-volver-chart-mensual" type="button" onclick="renderizarGraficoMensual()" class="hidden px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold">← Volver a meses</button>
+                </div>
                 <div class="relative w-full h-64 sm:h-80">
-                    <canvas id="chart-flujo-diario"></canvas>
+                    <canvas id="chart-flujo-diario" aria-label="Gráfica mensual y diaria de ingresos y egresos"></canvas>
                 </div>
             </div>
 
@@ -159,6 +165,7 @@
                 </div>
 
                 <form id="form-pedido-admin" class="space-y-4">
+                    <input type="hidden" id="pedido-id-edicion" value="">
                     <input type="hidden" id="cli-id-seleccionado">
                     <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                         <div>
@@ -603,7 +610,9 @@
         </div>
     </div>
 
-<!-- SCRIPT JS FUNCIONAL COMPLETO -->
+<!-- Modulos JavaScript del sistema -->
+    <script src="js/modulos/flujo-caja.js"></script>
+    <!-- SCRIPT JS FUNCIONAL COMPLETO -->
     <script>
 const SUPABASE_URL = 'https://njwiobfjtmwsxyigxgrp.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qd2lvYmZqdG13c3h5aWd4Z3JwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDg5OTE2NiwiZXhwIjoyMTA2NDc1MTY2fQ.v4MSHSCOnYbXb8DRDtw9-Fml0irHK0IkhnH-Bw2eRe0';
@@ -616,7 +625,7 @@ const SUPABASE_URL = 'https://njwiobfjtmwsxyigxgrp.supabase.co';
         let detallesPedidosCache = {};
         let deudasMensualesCache = [];
         let productoSeleccionadoCache = null;
-        let chartDiarioInstance = null;
+
         
         // ... el resto de tus funciones de la página ...
 
@@ -779,36 +788,14 @@ const SUPABASE_URL = 'https://njwiobfjtmwsxyigxgrp.supabase.co';
             }
         }
 
-        // ================= GRÁFICO DIARIO DE FLUJO DE CAJA =================
-        function renderizarGraficoDiario() {
-            const ctx = document.getElementById('chart-flujo-diario');
-            if(!ctx) return;
-
-            const agrupado = {};
-            flujoCajaCache.forEach(mov => {
-                let fecha = mov.fecha || 'Sin fecha';
-                if(!agrupado[fecha]) agrupado[fecha] = { ingresos: 0, egresos: 0 };
-                if(mov.tipo === 'INGRESO') agrupado[fecha].ingresos += parseMonto(mov.valor || 0);
-                if(mov.tipo === 'EGRESO') agrupado[fecha].egresos += parseMonto(mov.valor || 0);
-            });
-
-            const labels = Object.keys(agrupado).sort();
-            const dataIngresos = labels.map(l => agrupado[l].ingresos);
-            const dataEgresos = labels.map(l => agrupado[l].egresos);
-
-            if (chartDiarioInstance) chartDiarioInstance.destroy();
-
-            chartDiarioInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: 'Ingresos Diarios ($)', data: dataIngresos, backgroundColor: '#059669', borderRadius: 4 },
-                        { label: 'Egresos Diarios ($)', data: dataEgresos, backgroundColor: '#dc2626', borderRadius: 4 }
-                    ]
-                },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-            });
+        // ================= MODULO DE GRAFICAS DE FLUJO DE CAJA =================
+        // La implementacion visual vive en js/modulos/flujo-caja.js para mantener el sistema modular.
+        function renderizarGraficoMensual() {
+            if (window.CupissaFlujoCaja) window.CupissaFlujoCaja.renderMensual(flujoCajaCache);
+        }
+        function renderizarGraficoDiario(mesFiltro = null) {
+            if (!mesFiltro) return renderizarGraficoMensual();
+            if (window.CupissaFlujoCaja) window.CupissaFlujoCaja.renderDiario(flujoCajaCache, mesFiltro);
         }
 
         // ================= GESTIÓN DE DEUDAS Y CAJA =================
@@ -982,7 +969,7 @@ const SUPABASE_URL = 'https://njwiobfjtmwsxyigxgrp.supabase.co';
                 document.getElementById('stat-saldo-efectivo').innerText = `$${formatMoneda(ef)}`;
                 document.getElementById('stat-saldo-bancos').innerText = `$${formatMoneda(bco)}`;
 
-                renderizarGraficoDiario();
+                renderizarGraficoMensual();
             } catch(e) { console.error(e); }
         }
 
@@ -1315,6 +1302,40 @@ const SUPABASE_URL = 'https://njwiobfjtmwsxyigxgrp.supabase.co';
             let tipoOp = document.getElementById('ped-tipo').value;
             let metodoPago = document.getElementById('ped-metodo').value;
 
+            const pedidoEnEdicion = document.getElementById('pedido-id-edicion').value;
+            if (pedidoEnEdicion) {
+                const pedidoOriginal = pedidosCache.find(p => p.id === pedidoEnEdicion);
+                const abonoNuevo = Math.max(0, pagado);
+                const pagadoAcumulado = parseMonto(pedidoOriginal?.pagado || 0) + abonoNuevo;
+                const { error: editError } = await supabaseClient.from('pedidos').update({
+                    cliente_id: cliId, tipo_operacion: tipoOp, total, pagado: pagadoAcumulado,
+                    domicilio, costo_produccion_manual: costoManual,
+                    estado_pago: pagadoAcumulado >= total ? 'Pagado' : (pagadoAcumulado > 0 ? 'Abonado' : 'Pendiente'),
+                    fecha_agendamiento: fechaAgendamiento, fecha_entrega: fechaEntrega
+                }).eq('id', pedidoEnEdicion);
+                if (editError) { showToast("No se pudo actualizar el pedido", "error"); return; }
+                await supabaseClient.from('detalle_pedido').delete().eq('pedido_id', pedidoEnEdicion);
+                for (const item of carritoAdmin) {
+                    const { error } = await supabaseClient.from('detalle_pedido').insert([{
+                        pedido_id: pedidoEnEdicion, producto_id: item.producto_id,
+                        nombre_producto: item.nombre_producto, cantidad: item.cantidad,
+                        precio_unitario: item.precio_unitario
+                    }]);
+                    if (error) console.error('Error actualizando detalle de pedido:', error);
+                }
+                if (abonoNuevo > 0) {
+                    await supabaseClient.from('flujo_caja').insert([{
+                        fecha: new Date().toISOString().split('T')[0], tipo: 'INGRESO',
+                        concepto: 'Abono adicional Pedido Ref: ' + pedidoEnEdicion.slice(0,6),
+                        tercero: nombre, metodo_pago: metodoPago, valor: abonoNuevo
+                    }]);
+                }
+                showToast(`Pedido actualizado. Saldo pendiente: $${formatMoneda(Math.max(0, total-pagadoAcumulado))}`);
+                cancelarEdicionPedidoAdmin();
+                await cargarDatosGlobales();
+                return;
+            }
+
             const referenciaGenerada = 'CUP-' + Math.floor(1000 + Math.random() * 9000);
 
             const { data: pIns, error: pErr } = await supabaseClient.from('pedidos').insert([{
@@ -1374,6 +1395,53 @@ const SUPABASE_URL = 'https://njwiobfjtmwsxyigxgrp.supabase.co';
             cargarDatosGlobales();
         });
 
+        async function editarPedidoAdmin(id) {
+            const p = pedidosCache.find(x => x.id === id);
+            if (!p) { showToast("No se encontró el pedido", "error"); return; }
+            const c = clientesCache.find(x => x.id === p.cliente_id) || {};
+            document.getElementById('pedido-id-edicion').value = p.id;
+            document.getElementById('cli-id-seleccionado').value = c.id || '';
+            document.getElementById('cli-nombre').value = c.nombre || '';
+            document.getElementById('cli-telefono').value = c.telefono || '';
+            document.getElementById('cli-direccion').value = c.direccion || '';
+            document.getElementById('cli-email-cc').value = c.email || '';
+            document.getElementById('ped-domicilio').value = p.domicilio || 0;
+            document.getElementById('ped-anticipo').value = 0;
+            document.getElementById('ped-costo-manual').value = p.costo_produccion_manual || 0;
+            document.getElementById('ped-fecha-agendamiento').value = p.fecha_agendamiento || '';
+            document.getElementById('ped-fecha-entrega').value = p.fecha_entrega || '';
+            document.getElementById('ped-tipo').value = p.tipo_operacion || 'Venta';
+            carritoAdmin = (detallesPedidosCache[p.id] || []).map(d => ({
+                producto_id: d.producto_id || null, nombre_producto: d.nombre_producto || '',
+                cantidad: Number(d.cantidad) || 1, precio_unitario: parseMonto(d.precio_unitario || 0),
+                subtotal: (Number(d.cantidad) || 1) * parseMonto(d.precio_unitario || 0)
+            }));
+            renderizarCarritoAdmin();
+            const titulo = document.querySelector('#form-pedido-admin')?.closest('.bg-white')?.querySelector('h2');
+            if (titulo) titulo.textContent = '✏️ Editar Pedido / CRM';
+            const submit = document.querySelector('#form-pedido-admin button[type="submit"]');
+            if (submit) submit.textContent = '💾 Guardar cambios del pedido';
+            let cancelBtn = document.getElementById('btn-cancelar-edicion-pedido');
+            if (!cancelBtn) { cancelBtn = document.createElement('button'); cancelBtn.id = 'btn-cancelar-edicion-pedido'; cancelBtn.type = 'button'; cancelBtn.className = 'px-4 py-3 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs'; cancelBtn.textContent = 'Cancelar edición'; submit?.parentElement?.appendChild(cancelBtn); }
+            cancelBtn.onclick = cancelarEdicionPedidoAdmin;
+            cancelBtn.classList.remove('hidden');
+            document.getElementById('form-pedido-admin').scrollIntoView({behavior:'smooth', block:'start'});
+            showToast(`Editando pedido. Saldo actual: $${formatMoneda(Math.max(0, parseMonto(p.total)-parseMonto(p.pagado)))}`);
+        }
+
+        function cancelarEdicionPedidoAdmin() {
+            document.getElementById('pedido-id-edicion').value = '';
+            document.getElementById('form-pedido-admin').reset();
+            carritoAdmin = [];
+            renderizarCarritoAdmin();
+            const titulo = document.querySelector('#form-pedido-admin')?.closest('.bg-white')?.querySelector('h2');
+            if (titulo) titulo.textContent = '➕ Crear Pedido Real / CRM';
+            const submit = document.querySelector('#form-pedido-admin button[type="submit"]');
+            if (submit) submit.textContent = '💾 Guardar Pedido Definitivo';
+            const cancelBtn = document.getElementById('btn-cancelar-edicion-pedido');
+            if (cancelBtn) cancelBtn.classList.add('hidden');
+        }
+
         async function cargarPedidosAdmin() {
             const tbody = document.getElementById('tabla-pedidos-gral');
             const tbodyAlertas = document.getElementById('tabla-alertas-dashboard');
@@ -1415,9 +1483,12 @@ const SUPABASE_URL = 'https://njwiobfjtmwsxyigxgrp.supabase.co';
                         <td class="p-2.5"><strong>${cli.nombre}</strong><br><span class="text-[10px] text-slate-500">📞 ${cli.telefono||'Sin telf'}</span></td>
                         <td class="p-2.5">${p.tipo_operacion}<br><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeEstado}">${p.estado}</span></td>
                         <td class="p-2.5">Total: <strong>$${formatMoneda(total)}</strong><br><span class="text-amber-600 font-bold">Saldo: $${formatMoneda(saldo)}</span></td>
-                        <td class="p-2.5 flex gap-1">
-                            <button onclick="cambiarEstadoPedido('${p.id}', 'Entregado')" class="bg-emerald-50 hover:bg-emerald-100 p-1.5 rounded text-emerald-700 font-bold text-[10px]">Entregar</button>
-                            <button onclick="cambiarEstadoPedido('${p.id}', 'Cancelado')" class="bg-red-50 hover:bg-red-100 p-1.5 rounded text-red-700 font-bold text-[10px]">Cancelar</button>
+                        <td class="p-2.5">
+                            <div class="flex flex-wrap gap-1">
+                                <button type="button" onclick="editarPedidoAdmin('${p.id}')" class="bg-indigo-50 hover:bg-indigo-100 p-1.5 rounded text-indigo-700 font-bold text-[10px]">✏️ Editar / Saldo</button>
+                                <button type="button" onclick="cambiarEstadoPedido('${p.id}', 'Entregado')" class="bg-emerald-50 hover:bg-emerald-100 p-1.5 rounded text-emerald-700 font-bold text-[10px]">Entregar</button>
+                                <button type="button" onclick="cambiarEstadoPedido('${p.id}', 'Cancelado')" class="bg-red-50 hover:bg-red-100 p-1.5 rounded text-red-700 font-bold text-[10px]">Cancelar</button>
+                            </div>
                         </td>
                     </tr>
                 `;
