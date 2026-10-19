@@ -1442,6 +1442,140 @@ const SUPABASE_URL = 'https://njwiobfjtmwsxyigxgrp.supabase.co';
             if (cancelBtn) cancelBtn.classList.add('hidden');
         }
 
+let pedidoSaldoSeleccionado = null;
+
+function abrirModalSaldo(id) {
+    const pedido = pedidosCache.find(
+        p => String(p.id) === String(id)
+    );
+
+    if (!pedido) {
+        showToast('No se encontró el pedido.', 'error');
+        return;
+    }
+
+    pedidoSaldoSeleccionado = pedido;
+
+    const total = parseMonto(pedido.total || 0);
+    const pagado = parseMonto(pedido.pagado || 0);
+    const saldo = Math.max(0, total - pagado);
+
+    document.getElementById('saldo-referencia-pedido').textContent =
+        'Pedido: ' + String(pedido.id).slice(0, 8);
+
+    document.getElementById('saldo-actual-pedido').textContent =
+        '$' + formatMoneda(saldo);
+
+    document.getElementById('saldo-nuevo-valor').value =
+        String(saldo);
+
+    document.getElementById('saldo-motivo').value = '';
+    document.getElementById('saldo-mensaje-error').textContent = '';
+
+    document.getElementById('modal-cambiar-saldo').style.display = 'flex';
+
+    setTimeout(() => {
+        const campo = document.getElementById('saldo-nuevo-valor');
+        campo.focus();
+        campo.select();
+    }, 50);
+}
+
+function cerrarModalSaldo() {
+    document.getElementById('modal-cambiar-saldo').style.display = 'none';
+    document.getElementById('saldo-mensaje-error').textContent = '';
+    pedidoSaldoSeleccionado = null;
+}
+
+async function guardarCambioSaldo() {
+    if (!pedidoSaldoSeleccionado) return;
+
+    const boton = document.getElementById('saldo-btn-guardar');
+    const campo = document.getElementById('saldo-nuevo-valor');
+    const mensaje = document.getElementById('saldo-mensaje-error');
+
+    const nuevoSaldo = Number(campo.value);
+
+    if (campo.value.trim() === '' ||
+        !Number.isFinite(nuevoSaldo) ||
+        nuevoSaldo < 0) {
+        mensaje.textContent = 'Ingresa un saldo válido, igual o mayor que cero.';
+        return;
+    }
+
+    const pedidoId = pedidoSaldoSeleccionado.id;
+    const totalActual = parseMonto(pedidoSaldoSeleccionado.total || 0);
+    const pagadoActual = parseMonto(pedidoSaldoSeleccionado.pagado || 0);
+    const saldoActual = Math.max(0, totalActual - pagadoActual);
+
+    if (Math.abs(nuevoSaldo - saldoActual) < 0.001) {
+        cerrarModalSaldo();
+        return;
+    }
+
+    // Se conserva el dinero pagado y se ajusta el total
+    // para que el saldo pendiente sea el valor solicitado.
+    const nuevoTotal = nuevoSaldo + pagadoActual;
+
+    boton.disabled = true;
+    boton.textContent = 'Guardando...';
+    mensaje.textContent = '';
+
+    try {
+        const { error } = await supabaseClient
+            .from('pedidos')
+            .update({ total: nuevoTotal })
+            .eq('id', pedidoId);
+
+        if (error) throw error;
+
+        const motivo = document.getElementById('saldo-motivo').value.trim();
+
+        // Actualiza el dato local mientras se recarga el sistema.
+        const pedidoLocal = pedidosCache.find(
+            p => String(p.id) === String(pedidoId)
+        );
+
+        if (pedidoLocal) {
+            pedidoLocal.total = nuevoTotal;
+        }
+
+        cerrarModalSaldo();
+
+        showToast(
+            'Saldo actualizado correctamente: $' +
+            formatMoneda(nuevoSaldo)
+        );
+
+        if (motivo) {
+            console.info(
+                'Motivo del ajuste de saldo:',
+                motivo,
+                'Pedido:',
+                pedidoId
+            );
+        }
+
+        await cargarDatosGlobales();
+
+    } catch (error) {
+        console.error('Error al cambiar el saldo pendiente:', error);
+        mensaje.textContent =
+            'No se pudo guardar el saldo. ' +
+            (error.message || 'Verifica la conexión y los permisos.');
+    } finally {
+        boton.disabled = false;
+        boton.textContent = 'Guardar saldo';
+    }
+}
+
+document.getElementById('modal-cambiar-saldo')
+    ?.addEventListener('click', function(event) {
+        if (event.target === this) {
+            cerrarModalSaldo();
+        }
+    });
+
         async function cargarPedidosAdmin() {
             const tbody = document.getElementById('tabla-pedidos-gral');
             const tbodyAlertas = document.getElementById('tabla-alertas-dashboard');
@@ -1485,7 +1619,8 @@ const SUPABASE_URL = 'https://njwiobfjtmwsxyigxgrp.supabase.co';
                         <td class="p-2.5">Total: <strong>$${formatMoneda(total)}</strong><br><span class="text-amber-600 font-bold">Saldo: $${formatMoneda(saldo)}</span></td>
                         <td class="p-2.5">
                             <div class="flex flex-wrap gap-1">
-                                <button type="button" onclick="editarPedidoAdmin('${p.id}')" class="bg-indigo-50 hover:bg-indigo-100 p-1.5 rounded text-indigo-700 font-bold text-[10px]">✏️ Editar / Saldo</button>
+                                
+<button type="button" onclick="abrirModalSaldo('${p.id}')" class="bg-indigo-50 hover:bg-indigo-100 p-1.5 rounded text-indigo-700 font-bold text-[10px]">💰 Cambiar saldo</button>
                                 <button type="button" onclick="cambiarEstadoPedido('${p.id}', 'Entregado')" class="bg-emerald-50 hover:bg-emerald-100 p-1.5 rounded text-emerald-700 font-bold text-[10px]">Entregar</button>
                                 <button type="button" onclick="cambiarEstadoPedido('${p.id}', 'Cancelado')" class="bg-red-50 hover:bg-red-100 p-1.5 rounded text-red-700 font-bold text-[10px]">Cancelar</button>
                             </div>
@@ -1596,5 +1731,39 @@ const SUPABASE_URL = 'https://njwiobfjtmwsxyigxgrp.supabase.co';
             }
         }
     </script>
+    
+<!-- VENTANA INDEPENDIENTE PARA CAMBIAR SALDO -->
+<div id="modal-cambiar-saldo" style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,.55); align-items:center; justify-content:center; padding:16px;">
+  <div style="position:relative; background:var(--card-bg,#fff); color:var(--text-color,#222); width:100%; max-width:400px; padding:24px; border-radius:16px; box-shadow:0 15px 50px rgba(0,0,0,.25);">
+
+    <button type="button" onclick="cerrarModalSaldo()" style="position:absolute; top:10px; right:14px; border:0; background:transparent; font-size:26px; cursor:pointer;">&times;</button>
+
+    <h3 style="font-size:20px; font-weight:800; margin:0 30px 8px 0;">💰 Cambiar saldo pendiente</h3>
+
+    <p id="saldo-referencia-pedido" style="font-size:12px; color:#64748b; margin-bottom:18px;"></p>
+
+    <div style="padding:12px; background:rgba(100,116,139,.10); border-radius:10px; margin-bottom:18px;">
+      <div style="font-size:12px; color:#64748b;">Saldo pendiente actual</div>
+      <div id="saldo-actual-pedido" style="font-size:22px; font-weight:800;">$0</div>
+    </div>
+
+    <label for="saldo-nuevo-valor" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px;">Nuevo saldo pendiente ($)</label>
+
+    <input id="saldo-nuevo-valor" type="number" min="0" step="1" inputmode="decimal" placeholder="Ingrese el nuevo saldo" style="box-sizing:border-box; width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:9px; font-size:16px;">
+
+    <label for="saldo-motivo" style="display:block; font-weight:700; font-size:13px; margin:14px 0 6px;">Motivo del ajuste (opcional)</label>
+
+    <input id="saldo-motivo" type="text" maxlength="250" placeholder="Motivo del cambio" style="box-sizing:border-box; width:100%; padding:11px; border:1px solid #cbd5e1; border-radius:9px;">
+
+    <p id="saldo-mensaje-error" role="alert" style="color:#dc2626; font-size:12px; margin-top:10px;"></p>
+
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:18px;">
+      <button type="button" onclick="cerrarModalSaldo()" style="padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer;">Cancelar</button>
+
+      <button type="button" id="saldo-btn-guardar" onclick="guardarCambioSaldo()" style="padding:10px 14px; background:#059669; color:white; border:0; border-radius:8px; font-weight:700; cursor:pointer;">Guardar saldo</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
