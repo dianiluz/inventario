@@ -34,18 +34,41 @@
                 scales: { y: { beginAtZero: true } } }
         });
     }
-    function renderMensual(movements) {
-        const monthly = sumsByMonth(movements);
-        const keys = Object.keys(monthly).sort();
-        const back = $('btn-volver-chart-mensual'); if (back) back.classList.add('hidden');
-        if (!keys.length) {
-            paint('📈 Ingresos vs Egresos (Resumen mensual)', 'Aún no hay movimientos de caja con fecha válida para graficar.', [], [], []);
-            return;
-        }
-        paint('📈 Ingresos vs Egresos (Resumen mensual)', 'Haz clic en un mes para consultar su gráfica diaria.',
-            keys.map(monthLabel), keys.map(k => monthly[k].ingresos), keys.map(k => monthly[k].egresos),
-            (_event, elements) => { if (elements && elements.length) renderDiario(movements, keys[elements[0].index]); });
+    
+function renderMensual(movements) {
+    const monthly = sumsByMonth(movements);
+    const keys = Object.keys(monthly)
+        .filter(k => k >= '2026-09')
+        .sort();
+
+    const back = $('btn-volver-chart-mensual');
+    if (back) back.classList.add('hidden');
+
+    if (!keys.length) {
+        paint(
+            '📈 Ingresos vs Egresos (Resumen mensual)',
+            'No hay movimientos desde septiembre de 2026.',
+            [],
+            [],
+            []
+        );
+        return;
     }
+
+    paint(
+        '📈 Ingresos vs Egresos (Resumen mensual)',
+        'Haz clic en un mes para consultar su gráfica diaria.',
+        keys.map(monthLabel),
+        keys.map(k => monthly[k].ingresos),
+        keys.map(k => monthly[k].egresos),
+        (_event, elements) => {
+            if (elements && elements.length) {
+                renderDiario(movements, keys[elements[0].index]);
+            }
+        }
+    );
+}
+
     function renderDiario(movements, month) {
         const days = {};
         (movements || []).forEach((m) => {
